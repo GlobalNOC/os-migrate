@@ -284,9 +284,11 @@ class Server(resource.Resource):
         ser_ports = list(map(lambda p: ServerPort.from_sdk(conn, p), sdk_ports))
         refs['ports'] = list(map(lambda p: p.data, ser_ports))
 
-        sdk_fips = server_floating_ips(conn, ser_ports)
-        ser_fips = map(lambda fip: ServerFloatingIP.from_sdk(conn, fip), sdk_fips)
-        refs['floating_ips'] = list(map(lambda fip: fip.data, ser_fips))
+        # GRNOC: ignore floating IPs because I2 Cloud doesn't have them
+        # sdk_fips = server_floating_ips(conn, ser_ports)
+        # ser_fips = map(lambda fip: ServerFloatingIP.from_sdk(conn, fip), sdk_fips)
+        # refs['floating_ips'] = list(map(lambda fip: fip.data, ser_fips))
+        refs['floating_ips'] = []
 
         sdk_volumes = server_volumes(conn, sdk_res)
         ser_volumes = map(lambda vol: ServerVolume.from_sdk(conn, vol), sdk_volumes)

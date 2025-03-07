@@ -177,7 +177,8 @@ class OpenStackDstFailureCleanup(OpenStackHostBase):
 
     def delete_migrated_volumes(self):
         """ Detach destination volumes from converter and delete them. """
-        self._detach_volumes_from_converter()
+        # GRNOC: ignore converter parts
+        # self._detach_volumes_from_converter()
         self._delete_volumes()
 
     def _volume_still_attached(self, volume, vm):

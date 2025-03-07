@@ -107,11 +107,12 @@ class OpenStackHostBase():
         self.log.addHandler(log_handler)
         self.log.setLevel(logging.DEBUG)
 
-        if self._converter() is None:
-            raise RuntimeError(f'Cannot find instance {self.conversion_host_id}')
+        # GRNOC: ignore converter
+        # if self._converter() is None:
+        #     raise RuntimeError(f'Cannot find instance {self.conversion_host_id}')
 
-        self.shell = RemoteShell(self._converter_address(), ssh_user, ssh_key_path)
-        self.shell.test_ssh_connection()
+        # self.shell = RemoteShell(self._converter_address(), ssh_user, ssh_key_path)
+        # self.shell.test_ssh_connection()
 
         # Ports chosen for NBD export
         self.claimed_ports = []

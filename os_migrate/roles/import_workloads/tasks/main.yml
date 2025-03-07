@@ -3,10 +3,11 @@
     path: "{{ os_migrate_data_dir }}/workloads.yml"
   register: read_workloads
 
-- name: include the conversion hosts inventory
-  ansible.builtin.include_role:
-    name: os_migrate.os_migrate.conversion_host
-    tasks_from: conv_hosts_inventory.yml
+# GRNOC: ignore conversion hosts
+# - name: include the conversion hosts inventory
+#   ansible.builtin.include_role:
+#     name: os_migrate.os_migrate.conversion_host
+#     tasks_from: conv_hosts_inventory.yml
 
 - name: filter workloads to import
   ansible.builtin.set_fact:
@@ -15,16 +16,45 @@
         | os_migrate.os_migrate.stringfilter(os_migrate_workloads_filter,
                                              attribute='params.name') ) }}"
 
-- name: create directory for workload migration logs
-  ansible.builtin.file:
-    path: "{{ os_migrate_data_dir }}/workload_logs"
-    state: directory
-    mode: '0750'
+# GRNOC: ignore all conversion host stuff
+# - name: create directory for workload migration logs
+#   ansible.builtin.file:
+#     path: "{{ os_migrate_data_dir }}/workload_logs"
+#     state: directory
+#     mode: '0750'
 
-- name: check data copy state and run conversion host operations
-  ansible.builtin.include_tasks: conv_host.yml
-  loop: "{{ filtered_workloads }}"
+# - name: check data copy state and run conversion host operations
+#   ansible.builtin.include_tasks: conv_host.yml
+#   loop: "{{ filtered_workloads }}"
+# - name: write empty array to rbd map file
+
+# GRNOC: handle fake conversion host and tempfile for rbd_map
+- name: register fake conversion host data
+  ansible.builtin.set_fact:
+    fake_conversion_host:
+      id: "xyz123"
+      address: "127.127.127.254"
+
+- name: create temp file for rbd map
+  ansible.builtin.tempfile:
+    suffix: .json
+  register: tempfile
+
+- name: create symlink to rbd map file
+  ansible.builtin.file:
+    src: "{{ tempfile.path }}"
+    dest: "{{ rbd_map_file }}"
+    state: link
+
+  ansible.builtin.copy:
+    dest: "{{ tempfile.path }}"
+    content: '{{ [] | to_json }}'
+    mode: '0644'
 
 - name: import workloads
   ansible.builtin.include_tasks: workload.yml
   loop: "{{ filtered_workloads }}"
+
+- name: show temp file for rbd map
+  ansible.builtin.debug:
+    var: rbd_map_file

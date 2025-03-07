@@ -319,9 +319,10 @@ class OpenStackSourceHost(OpenStackHostBase):
         self._test_source_vm_shutdown()
         self._get_root_and_data_volumes()
         self._validate_volumes_match_data()
-        self._detach_data_volumes_from_source()
-        self._attach_volumes_to_converter()
-        self._export_volumes_from_converter()
+        # GRNOC: ignore converter sections
+        # self._detach_data_volumes_from_source()
+        # self._attach_volumes_to_converter()
+        # self._export_volumes_from_converter()
 
     def _source_vm(self):
         """

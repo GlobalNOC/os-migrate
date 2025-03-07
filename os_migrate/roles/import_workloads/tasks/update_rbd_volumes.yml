@@ -1,0 +1,13 @@
+- name: update rbd volumes
+  ansible.builtin.set_fact:
+    rbd_volumes: >-
+      {{
+        rbd_volumes +
+        [
+          {
+            'pool': ceph.pool,
+            'src_id': ceph.src_id,
+            'dst_id': ceph.dst_id,
+          }
+        ]
+      }}

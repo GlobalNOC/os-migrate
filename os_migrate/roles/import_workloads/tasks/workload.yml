@@ -8,8 +8,8 @@
         client_cert: "{{ os_migrate_dst_client_cert|default(omit) }}"
         client_key: "{{ os_migrate_dst_client_key|default(omit) }}"
         dst_filters: "{{ os_migrate_dst_filters }}"
-        src_conversion_host:
-          "{{ os_src_conversion_host_info.openstack_conversion_host }}"
+        src_conversion_host: "{{ fake_conversion_host }}"
+          # "{{ os_src_conversion_host_info.openstack_conversion_host }}"
         log_dir: "{{ os_migrate_data_dir }}/workload_logs"
         data: "{{ item }}"
       register: prelim
@@ -73,11 +73,11 @@
         ca_cert: "{{ os_migrate_src_ca_cert|default(omit) }}"
         client_cert: "{{ os_migrate_src_client_cert|default(omit) }}"
         client_key: "{{ os_migrate_src_client_key|default(omit) }}"
-        conversion_host:
-          "{{ os_src_conversion_host_info.openstack_conversion_host }}"
+        conversion_host: "{{ fake_conversion_host }}"
+          # "{{ os_src_conversion_host_info.openstack_conversion_host }}"
         data: "{{ item }}"
-        log_file: "{{ prelim.log_file }}"
-        state_file: "{{ prelim.state_file }}"
+        # log_file: "{{ prelim.log_file }}"
+        # state_file: "{{ prelim.state_file }}"
         ssh_key_path: "{{ os_migrate_conversion_keypair_private_path }}"
         ssh_user: "{{ os_migrate_conversion_host_ssh_user }}"
         timeout: "{{ os_migrate_timeout }}"
@@ -94,16 +94,16 @@
         client_cert: "{{ os_migrate_dst_client_cert|default(omit) }}"
         client_key: "{{ os_migrate_dst_client_key|default(omit) }}"
         data: "{{ item }}"
-        conversion_host:
-          "{{ os_dst_conversion_host_info.openstack_conversion_host }}"
+        conversion_host: "{{ fake_conversion_host }}"
+          # "{{ os_dst_conversion_host_info.openstack_conversion_host }}"
         ssh_key_path: "{{ os_migrate_conversion_keypair_private_path }}"
         ssh_user: "{{ os_migrate_conversion_host_ssh_user }}"
         transfer_uuid: "{{ exports.transfer_uuid }}"
-        src_conversion_host_address:
-          "{{ os_src_conversion_host_info.openstack_conversion_host.address }}"
+        src_conversion_host_address: "{{ fake_conversion_host.address }}"
+          # "{{ os_src_conversion_host_info.openstack_conversion_host.address }}"
         volume_map: "{{ exports.volume_map }}"
-        log_file: "{{ prelim.log_file }}"
-        state_file: "{{ prelim.state_file }}"
+        # log_file: "{{ prelim.log_file }}"
+        # state_file: "{{ prelim.state_file }}"
         timeout: "{{ os_migrate_timeout }}"
       register: transfer
       when:
@@ -123,48 +123,107 @@
       when:
         - prelim is defined and prelim.changed
 
-    - name: clean up in the source cloud after migration
-      os_migrate.os_migrate.import_workload_src_cleanup:
-        cloud: src
-        validate_certs: "{{ os_migrate_src_validate_certs|default(omit) }}"
-        ca_cert: "{{ os_migrate_src_ca_cert|default(omit) }}"
-        client_cert: "{{ os_migrate_src_client_cert|default(omit) }}"
-        client_key: "{{ os_migrate_src_client_key|default(omit) }}"
-        data: "{{ item }}"
-        conversion_host: "{{ os_src_conversion_host_info.openstack_conversion_host }}"
-        ssh_key_path: "{{ os_migrate_conversion_keypair_private_path }}"
-        ssh_user: "{{ os_migrate_conversion_host_ssh_user }}"
-        transfer_uuid: "{{ exports.transfer_uuid }}"
-        volume_map: "{{ exports.volume_map }}"
-        log_file: "{{ prelim.log_file }}"
-        state_file: "{{ prelim.state_file }}"
-        timeout: "{{ os_migrate_timeout }}"
-      when:
-        - prelim is defined and prelim.changed
-        - item["_migration_params"]["data_copy"]|default(true)
+    # - name: clean up in the source cloud after migration
+    #   os_migrate.os_migrate.import_workload_src_cleanup:
+    #     cloud: src
+    #     validate_certs: "{{ os_migrate_src_validate_certs|default(omit) }}"
+    #     ca_cert: "{{ os_migrate_src_ca_cert|default(omit) }}"
+    #     client_cert: "{{ os_migrate_src_client_cert|default(omit) }}"
+    #     client_key: "{{ os_migrate_src_client_key|default(omit) }}"
+    #     data: "{{ item }}"
+    #     conversion_host: "{{ os_src_conversion_host_info.openstack_conversion_host }}"
+    #     ssh_key_path: "{{ os_migrate_conversion_keypair_private_path }}"
+    #     ssh_user: "{{ os_migrate_conversion_host_ssh_user }}"
+    #     transfer_uuid: "{{ exports.transfer_uuid }}"
+    #     volume_map: "{{ exports.volume_map }}"
+    #     log_file: "{{ prelim.log_file }}"
+    #     state_file: "{{ prelim.state_file }}"
+    #     timeout: "{{ os_migrate_timeout }}"
+    #   when:
+    #     - prelim is defined and prelim.changed
+    #     - item["_migration_params"]["data_copy"]|default(true)
 
-  rescue:
-    - name: clean up in the source cloud after migration failure
-      os_migrate.os_migrate.import_workload_src_cleanup:
-        cloud: src
-        validate_certs: "{{ os_migrate_src_validate_certs|default(omit) }}"
-        ca_cert: "{{ os_migrate_src_ca_cert|default(omit) }}"
-        client_cert: "{{ os_migrate_src_client_cert|default(omit) }}"
-        client_key: "{{ os_migrate_src_client_key|default(omit) }}"
-        data: "{{ item }}"
-        conversion_host: "{{ os_src_conversion_host_info.openstack_conversion_host }}"
-        ssh_key_path: "{{ os_migrate_conversion_keypair_private_path }}"
-        ssh_user: "{{ os_migrate_conversion_host_ssh_user }}"
-        transfer_uuid: "{{ exports.transfer_uuid }}"
-        volume_map: "{{ exports.volume_map }}"
-        log_file: "{{ prelim.log_file }}"
-        state_file: "{{ prelim.state_file }}"
+    - name: stop new server so the ceph volumes can be renamed
+      openstack.cloud.server_action:
+        auth: "{{ os_migrate_dst_auth }}"
+        auth_type: "{{ os_migrate_dst_auth_type|default(omit) }}"
+        region_name: "{{ os_migrate_dst_region_name|default(omit) }}"
+        server: "{{ os_migrate_destination_instance.server_id }}"
+        action: stop
+        wait: true
         timeout: "{{ os_migrate_timeout }}"
+        validate_certs: "{{ os_migrate_dst_validate_certs|default(omit) }}"
+        ca_cert: "{{ os_migrate_dst_ca_cert|default(omit) }}"
+        client_cert: "{{ os_migrate_dst_client_cert|default(omit) }}"
+        client_key: "{{ os_migrate_dst_client_key|default(omit) }}"
       when:
         - prelim is defined and prelim.changed
-        - os_migrate_workload_cleanup_on_failure
-        - exports is defined and 'volume_map' in exports
-        - item["_migration_params"]["data_copy"]|default(true)
+
+    - name: create empty volumes array
+      ansible.builtin.set_fact:
+        rbd_volumes: []
+      when:
+        - prelim is defined and prelim.changed
+
+    - name: update rbd volumes
+      include_tasks: update_rbd_volumes.yml
+      vars:
+        ceph:
+          src_id: '{{ ceph_loop.value.source_id }}'
+          dst_id: '{{ ceph_loop.value.dest_id }}'
+          pool: '{{ rbd_mapping[ceph_loop.value.volume_type] }}'
+      loop: '{{ transfer.volume_map | dict2items }}'
+      loop_control:
+        loop_var: ceph_loop
+      when:
+        - prelim is defined and prelim.changed
+
+    - name: update rbd map
+      ansible.builtin.set_fact:
+        rbd_map: >-
+          {{
+            lookup('file', tempfile.path) | from_json +
+            [
+              {
+                'name': item['params']['name'],
+                'src_server_id': item['_info']['id'],
+                'dst_server_id': os_migrate_destination_instance.server_id,
+                'rbd_volumes': rbd_volumes
+              }
+            ]
+          }}
+      when:
+        - prelim is defined and prelim.changed
+
+    - name: write map back to file
+      ansible.builtin.copy:
+        dest: '{{ tempfile.path }}'
+        content: '{{ rbd_map | to_json }}'
+        mode: '0644'
+      when:
+        - prelim is defined and prelim.changed
+  rescue:
+    # - name: clean up in the source cloud after migration failure
+    #   os_migrate.os_migrate.import_workload_src_cleanup:
+    #     cloud: src
+    #     validate_certs: "{{ os_migrate_src_validate_certs|default(omit) }}"
+    #     ca_cert: "{{ os_migrate_src_ca_cert|default(omit) }}"
+    #     client_cert: "{{ os_migrate_src_client_cert|default(omit) }}"
+    #     client_key: "{{ os_migrate_src_client_key|default(omit) }}"
+    #     data: "{{ item }}"
+    #     conversion_host: "{{ os_src_conversion_host_info.openstack_conversion_host }}"
+    #     ssh_key_path: "{{ os_migrate_conversion_keypair_private_path }}"
+    #     ssh_user: "{{ os_migrate_conversion_host_ssh_user }}"
+    #     transfer_uuid: "{{ exports.transfer_uuid }}"
+    #     volume_map: "{{ exports.volume_map }}"
+    #     log_file: "{{ prelim.log_file }}"
+    #     state_file: "{{ prelim.state_file }}"
+    #     timeout: "{{ os_migrate_timeout }}"
+    #   when:
+    #     - prelim is defined and prelim.changed
+    #     - os_migrate_workload_cleanup_on_failure
+    #     - exports is defined and 'volume_map' in exports
+    #     - item["_migration_params"]["data_copy"]|default(true)
 
     - name: clean up in the destination cloud after migration failure
       os_migrate.os_migrate.import_workload_dst_failure_cleanup:
@@ -174,13 +233,14 @@
         client_cert: "{{ os_migrate_dst_client_cert|default(omit) }}"
         client_key: "{{ os_migrate_dst_client_key|default(omit) }}"
         data: "{{ item }}"
-        conversion_host: "{{ os_dst_conversion_host_info.openstack_conversion_host }}"
+        conversion_host: "{{ fake_conversion_host }}"
+        # conversion_host: "{{ os_dst_conversion_host_info.openstack_conversion_host }}"
         ssh_key_path: "{{ os_migrate_conversion_keypair_private_path }}"
         ssh_user: "{{ os_migrate_conversion_host_ssh_user }}"
         transfer_uuid: "{{ exports.transfer_uuid }}"
         volume_map: "{{ transfer.volume_map }}"
-        log_file: "{{ prelim.log_file }}"
-        state_file: "{{ prelim.state_file }}"
+        # log_file: "{{ prelim.log_file }}"
+        # state_file: "{{ prelim.state_file }}"
         timeout: "{{ os_migrate_timeout }}"
       when:
         - prelim is defined and prelim.changed
