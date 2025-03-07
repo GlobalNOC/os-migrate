@@ -338,15 +338,17 @@ class OpenStackDestinationHost(OpenStackHostBase):
         self.ser_server = ser_server
 
     def transfer_exports(self):
-        try:
-            self._create_forwarding_process()
-            self._create_destination_volumes()
-            self._attach_destination_volumes()
-            self._convert_destination_volumes()
-            self._detach_destination_volumes()
-        finally:
-            self._stop_forwarding_process()
-            self._release_ports()
+        # GRNOC: skip conversion host sections
+        self._create_destination_volumes()
+        # try:
+        #     self._create_forwarding_process()
+        #     self._create_destination_volumes()
+        #     self._attach_destination_volumes()
+        #     self._convert_destination_volumes()
+        #     self._detach_destination_volumes()
+        # finally:
+        #     self._stop_forwarding_process()
+        #     self._release_ports()
 
     def _create_forwarding_process(self):
         """
@@ -444,8 +446,18 @@ class OpenStackDestinationHost(OpenStackHostBase):
                     dict(filter(lambda item: item[1] is not None,
                                 self.ser_server.migration_params()['boot_volume_params'].items()))
                 sdk_params.update(boot_volume_params_defined)
-            new_volume = self.conn.create_volume(**sdk_params)
-            self.volume_map[path]['dest_id'] = new_volume.id
+
+            # GRNOC: use migration faux image
+            # new_volume = self.conn.create_volume(**sdk_params)
+            # self.volume_map[path]['dest_id'] = new_volume.id
+
+            migration_image = self.conn.get_image('migration')
+
+            if migration_image is not None:
+                new_volume = self.conn.create_volume(**sdk_params, image_id=migration_image['id'])
+                self.volume_map[path]['dest_id'] = new_volume.id
+                self.volume_map[path]['volume_type'] = new_volume.volume_type
+            
 
     @use_lock(ATTACH_LOCK_FILE_DESTINATION)
     def _attach_destination_volumes(self):
@@ -627,28 +639,60 @@ def run_module():
         name = path.split('/')[-1]
         uuid = destination_host.volume_map[path]['dest_id']
 
-        if path == '/dev/vda':
-            entry = {
-                'boot_index': 0,
-                'delete_on_termination': True,
-                'destination_type': 'volume',
-                'device_name': name,
-                'source_type': 'volume',
-                'uuid': uuid,
-            }
-        else:
-            entry = {
-                'boot_index': -1,
-                'delete_on_termination': False,
-                'destination_type': 'volume',
-                'device_name': name,
-                'source_type': 'volume',
-                'uuid': uuid,
-            }
+        # GRNOC: don't assume /dev/vda is the bootable disk
+        # if path == '/dev/vda':
+        #     entry = {
+        #         'boot_index': 0,
+        #         'delete_on_termination': True,
+        #         'destination_type': 'volume',
+        #         'device_name': name,
+        #         'source_type': 'volume',
+        #         'uuid': uuid,
+        #     }
+        # else:
+        #     entry = {
+        #         'boot_index': -1,
+        #         'delete_on_termination': False,
+        #         'destination_type': 'volume',
+        #         'device_name': name,
+        #         'source_type': 'volume',
+        #         'uuid': uuid,
+        #     }
+
+        bootable = destination_host.volume_map[path]['bootable']
+        entry = {
+            'boot_index': -1 if not bootable else 0,
+            'delete_on_termination': False,
+            'destination_type': 'volume',
+            'device_name': name,
+            'source_type': 'volume',
+            'uuid': uuid,
+        }
         block_device_mapping.append(entry)
 
     result['volume_map'] = destination_host.volume_map
     result['block_device_mapping'] = block_device_mapping
+
+    # GRNOC: map vdX -> sdX
+    # get count of vdX devices
+    count = len([ x for x in block_device_mapping if x['device_name'][0] == 'v'])
+
+    if count > 0:
+        # we have a vdX device that should become an sdX device
+        for x in block_device_mapping:
+            c1 = x['device_name'][0]
+            c2 = x['device_name'][2]
+
+            if c1 == 'v':
+                # simply rename vdX to sdX
+                x['device_name'] = f'sd{c2}'
+            else:
+                # for other sdX devices, bump letter by number of vdX devices
+                x['device_name'] = f'sd{chr(ord(c2) + count)}'
+
+    if block_device_mapping[0]['uuid'] is None:
+        result['failed'] = True
+        result['error'] = 'No block device was created. Does the migration image exist?'
 
     module.exit_json(**result)
 
