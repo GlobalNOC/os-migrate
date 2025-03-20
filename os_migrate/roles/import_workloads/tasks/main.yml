@@ -13,8 +13,8 @@
   ansible.builtin.set_fact:
     filtered_workloads: "{{ (
       read_workloads.resources
-        | os_migrate.os_migrate.stringfilter(os_migrate_workloads_filter,
-                                             attribute='params.name') ) }}"
+      | os_migrate.os_migrate.stringfilter(os_migrate_workloads_filter,
+      attribute='params.name') ) }}"
 
 # GRNOC: ignore all conversion host stuff
 # - name: create directory for workload migration logs
@@ -75,34 +75,19 @@
 #     sleep: 5
 #     timeout: 600
 
-# GRNOC: handle fake conversion host and tempfile for rbd_map
+# GRNOC: handle fake conversion host
 - name: register fake conversion host data
   ansible.builtin.set_fact:
     fake_conversion_host:
       id: "xyz123"
       address: "127.127.127.254"
 
-- name: create temp file for rbd map
-  ansible.builtin.tempfile:
-    suffix: .json
-  register: tempfile
-
-- name: create symlink to rbd map file
-  ansible.builtin.file:
-    src: "{{ tempfile.path }}"
-    dest: "{{ rbd_map_file }}"
-    state: link
-
 - name: write empty array to rbd map file
   ansible.builtin.copy:
-    dest: "{{ tempfile.path }}"
-    content: '{{ [] | to_json }}'
-    mode: '0644'
+    dest: "{{ rbd_map_file }}"
+    content: "{{ [] | to_json }}"
+    mode: "0644"
 
 - name: import workloads
   ansible.builtin.include_tasks: workload.yml
   loop: "{{ filtered_workloads }}"
-
-- name: show temp file for rbd map
-  ansible.builtin.debug:
-    var: rbd_map_file
