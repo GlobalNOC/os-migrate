@@ -82,12 +82,6 @@
       id: "xyz123"
       address: "127.127.127.254"
 
-- name: write empty array to rbd map file
-  ansible.builtin.copy:
-    dest: "{{ rbd_map_file }}"
-    content: "{{ [] | to_json }}"
-    mode: "0644"
-
 - name: import workloads
   ansible.builtin.include_tasks: workload.yml
   loop: "{{ filtered_workloads }}"
