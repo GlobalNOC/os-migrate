@@ -151,7 +151,7 @@
       ansible.builtin.set_fact:
         rbd_map: >-
           {{
-            lookup('file', rbd_map_file) | from_json +
+            lookup('file', rbd_map_file, errors='ignore') | default('[]', true) | from_json +
             [
               {
                 'name': item['params']['name'],
